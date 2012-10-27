@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>GitHub Game Off 2012</title>
+		<link rel="stylesheet/less" type="text/css" href="style.less">
+		<script type="text/javascript" src="less.js"></script>
+		<script type="text/javascript" src="jquery.js"></script>
+		<script type="text/javascript" src="input.js"></script>
+		<script type="text/javascript" src="bot.js"></script>
+	</head>
+	<body>
+		<h1>GitHub Game-Off 2012</h1>
+		<div id="container">
+			<div id="arena">
+				<div id="border-tl"></div><div id="border-t"></div><div id="border-tr"></div>
+				<div id="border-l"></div><canvas id="gameCanvas" width="256" height="256"></canvas><div id="border-r"></div>
+				<div id="border-bl"></div><div id="border-b"></div><div id="border-br"></div>
+			</div>
+		</div>
+
+		<script type="text/javascript">
+			var c = document.getElementById("gameCanvas");
+			var ctx = c.getContext("2d");
+			var mainBot;
+			var branches;
+			var input;
+			var w = c.width; var h = c.height;
+
+			var botImg = new Image();
+			botImg.src = "images/bot.png";
+
+			$(document).ready(function() {
+				mainBot = new Bot(0, 0);
+				branches = new Array();
+				input = new Input();
+
+				$(document).keydown(function(e) {
+					input.keydown(e);
+				});
+
+				$(document).keyup(function(e) {
+					input.keyup(e);
+				});
+
+				setInterval(gameLoop, 10);
+
+				function gameLoop() {
+					ctx.clearRect(0, 0, w, h);
+					ctx.drawImage(botImg, mainBot.x, mainBot.y);
+
+					if(input.leftPressed) mainBot.x -= 4;
+					if(input.rightPressed) mainBot.x += 4;
+					if(input.upPressed) mainBot.y -= 4;
+					if(input.downPressed) mainBot.y += 4;
+				}
+			});
+			$("document").keypress()
+		</script>
+	</body>
+</html>

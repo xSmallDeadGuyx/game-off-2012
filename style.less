@@ -1,0 +1,96 @@
+@cell-width: 16px;
+@cell-height: 16px;
+@cells-h: 16;
+@cells-v: 16;
+@border-width: 16px;
+
+body {
+	padding: 10px;
+	margin: 0px;
+	text-align: center;
+}
+
+#container {
+	padding: 0px;
+	display: inline-block;
+}
+
+#arena {
+	position: relative;
+	padding: 0px;
+	margin: 0px;
+	width: (@border-width * 2 + @cell-width * @cells-h) ;
+	height: (@border-width * 2 + @cell-height * @cells-v);
+}
+
+#border-tl {
+	position: absolute;
+	left: 0px;
+	top: 0px;
+	width: @border-width;
+	height: @border-width;
+	background-image: url('images/border-cl.png');
+}
+#border-bl {
+	position: absolute;
+	left: 0px;
+	bottom: 0px;
+	width: @border-width;
+	height: @border-width;
+	background-image: url('images/border-cl.png');
+}
+#border-tr {
+	position: absolute;
+	right: 0px;
+	top: 0px;
+	width: @border-width;
+	height: @border-width;
+	background-image: url('images/border-cr.png');
+}
+#border-br {
+	position: absolute;
+	right: 0px;
+	bottom: 0px;
+	width: @border-width;
+	height: @border-width;
+	background-image: url('images/border-cr.png');
+}
+#border-t {
+	position: absolute;
+	left: @border-width;
+	top: 0px;
+	width: (@cell-width * @cells-h);
+	height: @border-width;
+	background-image: url('images/border-h.png');
+}
+#border-b {
+	position: absolute;
+	left: @border-width;
+	bottom: 0px;
+	width: (@cell-width * @cells-h);
+	height: @border-width;
+	background-image: url('images/border-h.png');
+}
+#border-l {
+	position: absolute;
+	left: 0px;
+	top: @border-width;
+	width: @border-width;
+	height: (@cell-height * @cells-v);
+	background-image: url('images/border-v.png');
+}
+#border-r {
+	position: absolute;
+	right: 0px;
+	top: @border-width;
+	width: @border-width;
+	height: (@cell-height * @cells-v);
+	background-image: url('images/border-v.png');
+}
+
+#gameCanvas {
+	width: (@cell-width * @cells-h);
+	height: (@cell-height * @cells-v);
+	margin: @border-width;
+	padding: 0px;
+}
