@@ -3,6 +3,8 @@
 @cells-h: 16;
 @cells-v: 16;
 @border-width: 16px;
+@arena-width: (@border-width * 2 + @cell-width * @cells-h);
+@arena-height: (@border-width * 2 + @cell-height * @cells-v);
 
 body {
 	padding: 10px;
@@ -13,84 +15,141 @@ body {
 #container {
 	padding: 0px;
 	display: inline-block;
-}
 
-#arena {
-	position: relative;
-	padding: 0px;
-	margin: 0px;
-	width: (@border-width * 2 + @cell-width * @cells-h) ;
-	height: (@border-width * 2 + @cell-height * @cells-v);
-}
+	#arena {
+		position: relative;
+		float: left;
+		padding: 0px;
+		margin: 0px;
+		width: @arena-width;
+		height: @arena-height;
 
-#border-tl {
-	position: absolute;
-	left: 0px;
-	top: 0px;
-	width: @border-width;
-	height: @border-width;
-	background-image: url('images/border-cl.png');
-}
-#border-bl {
-	position: absolute;
-	left: 0px;
-	bottom: 0px;
-	width: @border-width;
-	height: @border-width;
-	background-image: url('images/border-cl.png');
-}
-#border-tr {
-	position: absolute;
-	right: 0px;
-	top: 0px;
-	width: @border-width;
-	height: @border-width;
-	background-image: url('images/border-cr.png');
-}
-#border-br {
-	position: absolute;
-	right: 0px;
-	bottom: 0px;
-	width: @border-width;
-	height: @border-width;
-	background-image: url('images/border-cr.png');
-}
-#border-t {
-	position: absolute;
-	left: @border-width;
-	top: 0px;
-	width: (@cell-width * @cells-h);
-	height: @border-width;
-	background-image: url('images/border-h.png');
-}
-#border-b {
-	position: absolute;
-	left: @border-width;
-	bottom: 0px;
-	width: (@cell-width * @cells-h);
-	height: @border-width;
-	background-image: url('images/border-h.png');
-}
-#border-l {
-	position: absolute;
-	left: 0px;
-	top: @border-width;
-	width: @border-width;
-	height: (@cell-height * @cells-v);
-	background-image: url('images/border-v.png');
-}
-#border-r {
-	position: absolute;
-	right: 0px;
-	top: @border-width;
-	width: @border-width;
-	height: (@cell-height * @cells-v);
-	background-image: url('images/border-v.png');
-}
+		#border-tl {
+			position: absolute;
+			left: 0px;
+			top: 0px;
+			width: @border-width;
+			height: @border-width;
+			background-image: url('images/border-cl.png');
+		}
+		#border-bl {
+			position: absolute;
+			left: 0px;
+			bottom: 0px;
+			width: @border-width;
+			height: @border-width;
+			background-image: url('images/border-cl.png');
+		}
+		#border-tr {
+			position: absolute;
+			right: 0px;
+			top: 0px;
+			width: @border-width;
+			height: @border-width;
+			background-image: url('images/border-cr.png');
+		}
+		#border-br {
+			position: absolute;
+			right: 0px;
+			bottom: 0px;
+			width: @border-width;
+			height: @border-width;
+			background-image: url('images/border-cr.png');
+		}
+		#border-t {
+			position: absolute;
+			left: @border-width;
+			top: 0px;
+			width: (@cell-width * @cells-h);
+			height: @border-width;
+			background-image: url('images/border-h.png');
+		}
+		#border-b {
+			position: absolute;
+			left: @border-width;
+			bottom: 0px;
+			width: (@cell-width * @cells-h);
+			height: @border-width;
+			background-image: url('images/border-h.png');
+		}
+		#border-l {
+			position: absolute;
+			left: 0px;
+			top: @border-width;
+			width: @border-width;
+			height: (@cell-height * @cells-v);
+			background-image: url('images/border-v.png');
+		}
+		#border-r {
+			position: absolute;
+			right: 0px;
+			top: @border-width;
+			width: @border-width;
+			height: (@cell-height * @cells-v);
+			background-image: url('images/border-v.png');
+		}
 
-#gameCanvas {
-	width: (@cell-width * @cells-h);
-	height: (@cell-height * @cells-v);
-	margin: @border-width;
-	padding: 0px;
+		#gameCanvas {
+			width: (@cell-width * @cells-h);
+			height: (@cell-height * @cells-v);
+			margin: @border-width;
+			padding: 0px;
+		}
+	}
+
+	#controls {
+		margin-left: @border-width;
+		float: left;
+		display: inline-block;
+		position: relative;
+		width: @arena-width;
+		height: @arena-height;
+		text-align: left;
+
+		#code {
+			width: 100%;
+		}
+
+		#commands {
+			display: block;
+			float: left;
+			margin: 0px;
+			padding: 0px;
+			width: 50%;
+
+			li {
+				float: left;
+				list-style: none;
+				display: inline-block;
+
+				margin: 2px;
+				padding: 0px;
+
+				@img-size: 20px;
+
+				button {
+					display: block;
+					margin: 0px;
+					padding: 2px;
+					width: (@img-size + 10px);
+					height: (@img-size + 10px);
+				}
+
+				img {
+					padding: 0px;
+					margin: 0px;
+					border-style: none;
+				}
+			}
+		}
+
+		#commandsExtra {
+			position: relative;
+			display: inline-block;
+			float: left;
+			width: 50%;
+			padding: 0px;
+			margin: 0px;
+		}
+	}
 }

@@ -2,19 +2,63 @@
 <html>
 	<head>
 		<title>GitHub Game Off 2012</title>
-		<link rel="stylesheet/less" type="text/css" href="style.less">
+
+		<script type="text/javascript">
+			var cellWidth = 16;
+			var cellHeight = 16;
+			var cellsH = 16;
+			var cellsV = 16;
+			var borderWidth = 16;
+
+			function getWidth() {
+				return cellWidth * cellsH;
+			}
+			function getHeight() {
+				return cellHeight * cellsV;
+			}
+		</script>
+
+		<link rel="stylesheet/less" type="text/less" href="style.less">
 		<script type="text/javascript" src="less.js"></script>
+
 		<script type="text/javascript" src="jquery.js"></script>
 		<script type="text/javascript" src="input.js"></script>
 		<script type="text/javascript" src="bot.js"></script>
 	</head>
 	<body>
-		<h1>GitHub Game-Off 2012</h1>
 		<div id="container">
 			<div id="arena">
 				<div id="border-tl"></div><div id="border-t"></div><div id="border-tr"></div>
-				<div id="border-l"></div><canvas id="gameCanvas" width="256" height="256"></canvas><div id="border-r"></div>
+				<div id="border-l"></div><canvas id="gameCanvas"></canvas><div id="border-r"></div>
 				<div id="border-bl"></div><div id="border-b"></div><div id="border-br"></div>
+			</div>
+			<div id="controls">
+				Functions: <select id="functions" name="functions">
+					<option value="main">main</option>
+				</select><br />
+				<button id="createFunction" onClick="createFunction()">Create Function</button>
+				<button id="deleteFunction" onCLick="deleteFunction()" disabled="true">Delete Function</button><br />
+				Code:<br />
+				<select id="code" multiple>
+
+				</select>
+				<ul id="commands">
+					Move:<br />
+					<li><button id="moveLeft" onClick="addCommand(1)"><img alt="Move Left" src="images/cmd_left.png" /></button></li>
+					<li><button id="moveRight" onClick="addCommand(2)"><img alt="Move Right" src="images/cmd_right.png" /></button></li>
+					<li><button id="moveUp" onClick="addCommand(3)"><img alt="Move Up" src="images/cmd_up.png" /></button></li>
+					<li><button id="moveDown" onClick="addCommand(4)"><img alt="Move Down" src="images/cmd_down.png" /></button></li><br />
+					Clone:<br />
+					<li><button id="cloneLeft" onClick="addCommand(5)"><img alt="Clone Left" src="images/cmd_clone_left.png" /></button></li>
+					<li><button id="cloneRight" onClick="addCommand(6)"><img alt="Clone Right" src="images/cmd_clone_right.png" /></button></li>
+					<li><button id="cloneUp" onClick="addCommand(7)"><img alt="Clone Up" src="images/cmd_clone_up.png" /></button></li>
+					<li><button id="cloneDown" onClick="addCommand(8)"><img alt="Clone Down" src="images/cmd_clone_down.png" /></button></li>
+				</ul>
+				<div id="commandsExtra">
+					Others:<br />
+					<button id="doNothing" onClick="addCommand(0)">Do Nothing</button>
+					<button id="deleteCommand" onClick="deleteCommands()" disabled="true">Delete Command(s)</button>
+				</div>
 			</div>
 		</div>
 
@@ -22,12 +66,96 @@
 			var c = document.getElementById("gameCanvas");
 			var ctx = c.getContext("2d");
 			var mainBot;
+			var mainBotCmds = new Array();
+			var functions = new Array();
 			var branches;
 			var input;
-			var w = c.width; var h = c.height;
+			var w = c.width = getWidth(); var h = c.height = getHeight();
+
+			var NOTHING = 0;
+			var MOVE_LEFT = 1;
+			var MOVE_RIGHT = 2;
+			var MOVE_UP = 3;
+			var MOVE_DOWN = 4;
+			var CLONE_LEFT = 5;
+			var CLONE_RIGHT = 6;
+			var CLONE_UP = 7;
+			var CLONE_DOWN = 8;
+
+			var cmdText = ["Do Nothing", "Move Left", "Move Right", "Move Up", "Move Down", "Clone Left", "Clone Right", "Clone Up", "Clone Down"];
 
 			var botImg = new Image();
 			botImg.src = "images/bot.png";
+
+			function addCommand(id) {
+				if($("#functions").val() == "main")
+					mainBotCmds.push(id);
+				else {
+					var n = int($("#functions").val());
+					functions[n].push(id);
+				}
+				populateCommandList();
+			}
+
+			function populateCommandList() {
+				$("#code").html("");
+				var cmdList = mainBotCmds;
+				if($("#functions").val() != "main")
+					cmdList = functions[int($("#functions").val())];
+				var n = $("#code option").length;
+				for(var i = 0; i < cmdList.length; i++) {
+					$("#code").append($('<option>', { value: "c" + n, text : cmdText[cmdList[i]] }));
+					n++;
+				}
+			}
+
+			function updateButtonDisables() {
+				$("#deleteCommand").attr('disabled', !$("#code").val());
+				$("#deleteFunction").attr('disabled', $("#functions").val() == "main");
+			}
+
+			function createFunction() {
+				var name = window.prompt("Function name:", "");
+				var validName = (name != "" && name.length < 15);
+				if(validName)
+					$("#functions option").each(function(i) {
+						if($(this).text() == name)
+							validName = false;
+					});
+
+				if(!validName)
+					alert("Invalid name: " + name);
+				else {
+					var n = $("#functions option").length - 1;
+					$("#functions").append($("<option>", { value: "f" + n, text: name}));
+					$("#functions").val("f" + n);
+				}
+				updateButtonDisables();
+			}
+
+			function deleteFunction() {
+				if($("#functions").val() != "main" && window.confirm("Are you sure?")) {
+					var n = parseInt($("#functions").val().substring(1));
+					functions.splice(n, 1);
+					$("#functions :selected").remove();
+					$("#functions option").each(function(i) {
+						if($(this).val() != "main")
+							$(this).val("f" + (i - 1));
+					});
+				}
+				updateButtonDisables();
+			}
+
+			function deleteCommands() {
+				$("#code :selected").remove();
+				$("#code option").each(function(i) {
+					$(this).val("c" + i);
+				});
+				updateButtonDisables();
+			}
+
+			$("#code").change(updateButtonDisables);
+			$("#functions").change(updateButtonDisables);
 
 			$(document).ready(function() {
 				mainBot = new Bot(0, 0);
@@ -44,14 +172,37 @@
 
 				setInterval(gameLoop, 10);
 
-				function gameLoop() {
-					ctx.clearRect(0, 0, w, h);
+				function onUpdate() {
+					
+				}
+
+				function draw() {
+					ctx.save();
+					ctx.fillStyle = "#E0E0E0";
+					ctx.fillRect(0, 0, w, h);
+
+					ctx.strokeStyle = "#808080";
+					ctx.lineWidth = 1;
+					for(var i = 0; i <= cellsH; i++) {
+						ctx.beginPath();
+						ctx.moveTo(i * cellWidth, 0);
+						ctx.lineTo(i * cellWidth, h);
+						ctx.stroke();
+
+						ctx.beginPath();
+						ctx.moveTo(0, i * cellHeight);
+						ctx.lineTo(w, i * cellHeight);
+						ctx.stroke();
+					}
+
 					ctx.drawImage(botImg, mainBot.x, mainBot.y);
 
-					if(input.leftPressed) mainBot.x -= 4;
-					if(input.rightPressed) mainBot.x += 4;
-					if(input.upPressed) mainBot.y -= 4;
-					if(input.downPressed) mainBot.y += 4;
+					ctx.restore();
+				}
+
+				function gameLoop() {
+					onUpdate();
+					draw();
 				}
 			});
 			$("document").keypress()
