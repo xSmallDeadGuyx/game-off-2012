@@ -38,10 +38,14 @@
 				</select><br />
 				<button id="createFunction" onClick="createFunction()">Create Function</button>
 				<button id="deleteFunction" onCLick="deleteFunction()" disabled="true">Delete Function</button><br />
-				Code:<br />
+				Instructions:<br />
 				<select id="code" multiple>
 
-				</select>
+				</select><br />
+				<div style="font-style: italic; font-size: 12px; margin: 0px; padding: 0px; text-align: center;">
+					To insert code before a command, select the command<br />
+					To append code, <a href="#" onClick="$('#code').val('')">deselect</a> everything
+				</div>
 				<ul id="commands">
 					Move:<br />
 					<li><button id="moveLeft" onClick="addCommand(1)"><img alt="Move Left" src="images/cmd_left.png" /></button></li>
@@ -49,15 +53,16 @@
 					<li><button id="moveUp" onClick="addCommand(3)"><img alt="Move Up" src="images/cmd_up.png" /></button></li>
 					<li><button id="moveDown" onClick="addCommand(4)"><img alt="Move Down" src="images/cmd_down.png" /></button></li><br />
 					Clone:<br />
-					<li><button id="cloneLeft" onClick="addCommand(5)"><img alt="Clone Left" src="images/cmd_clone_left.png" /></button></li>
-					<li><button id="cloneRight" onClick="addCommand(6)"><img alt="Clone Right" src="images/cmd_clone_right.png" /></button></li>
-					<li><button id="cloneUp" onClick="addCommand(7)"><img alt="Clone Up" src="images/cmd_clone_up.png" /></button></li>
-					<li><button id="cloneDown" onClick="addCommand(8)"><img alt="Clone Down" src="images/cmd_clone_down.png" /></button></li>
+					<li><button id="cloneLeft" onClick="addCloneCommand(5)"><img alt="Clone Left" src="images/cmd_clone_left.png" /></button></li>
+					<li><button id="cloneRight" onClick="addCloneCommand(6)"><img alt="Clone Right" src="images/cmd_clone_right.png" /></button></li>
+					<li><button id="cloneUp" onClick="addCloneCommand(7)"><img alt="Clone Up" src="images/cmd_clone_up.png" /></button></li>
+					<li><button id="cloneDown" onClick="addCloneCommand(8)"><img alt="Clone Down" src="images/cmd_clone_down.png" /></button></li>
 				</ul>
 				<div id="commandsExtra">
 					Others:<br />
 					<button id="doNothing" onClick="addCommand(0)">Do Nothing</button>
 					<button id="deleteCommand" onClick="deleteCommands()" disabled="true">Delete Command(s)</button>
+					<button id="clearCommands" onClick="clearCommands()">Clear Commands</button>
 				</div>
 			</div>
 		</div>
@@ -82,36 +87,31 @@
 			var CLONE_UP = 7;
 			var CLONE_DOWN = 8;
 
+			Command = function(id, meta) {
+				this.id = id;
+				this.meta = meta;
+			}
+
 			var cmdText = ["Do Nothing", "Move Left", "Move Right", "Move Up", "Move Down", "Clone Left", "Clone Right", "Clone Up", "Clone Down"];
 
 			var botImg = new Image();
 			botImg.src = "images/bot.png";
 
-			function addCommand(id) {
-				if($("#functions").val() == "main")
-					mainBotCmds.push(id);
-				else {
-					var n = int($("#functions").val());
-					functions[n].push(id);
-				}
-				populateCommandList();
+			function updateButtonDisables() {
+				$("#deleteCommand").attr('disabled', !$("#code").val());
+				$("#deleteFunction").attr('disabled', $("#functions").val() == "main");
 			}
 
 			function populateCommandList() {
 				$("#code").html("");
 				var cmdList = mainBotCmds;
 				if($("#functions").val() != "main")
-					cmdList = functions[int($("#functions").val())];
+					cmdList = functions[parseInt($("#functions").val().substring(1))];
 				var n = $("#code option").length;
 				for(var i = 0; i < cmdList.length; i++) {
-					$("#code").append($('<option>', { value: "c" + n, text : cmdText[cmdList[i]] }));
+					$("#code").append($('<option>', { value: "c" + n, text : cmdText[cmdList[i].id] + (cmdList[i].meta ? " (" + cmdList[i].meta + ")" : "") }));
 					n++;
 				}
-			}
-
-			function updateButtonDisables() {
-				$("#deleteCommand").attr('disabled', !$("#code").val());
-				$("#deleteFunction").attr('disabled', $("#functions").val() == "main");
 			}
 
 			function createFunction() {
@@ -129,8 +129,10 @@
 					var n = $("#functions option").length - 1;
 					$("#functions").append($("<option>", { value: "f" + n, text: name}));
 					$("#functions").val("f" + n);
+					functions.push(new Array());
 				}
 				updateButtonDisables();
+				populateCommandList();
 			}
 
 			function deleteFunction() {
@@ -143,19 +145,90 @@
 							$(this).val("f" + (i - 1));
 					});
 				}
+				
 				updateButtonDisables();
 			}
 
+			function addCommand(id) {
+				addRawCommand(new Command(id, ""));
+			}
+
+			function addCloneCommand(id) {
+				var func = window.prompt("Which function would you like to clone into?", "main");
+				var valid = func == "main";
+				if(!valid)
+					$("#functions option").each(function(i) {
+						if($(this).text() == func)
+							valid = true;
+					});
+
+				if(valid)
+					addCommand(id, func);
+				else
+					alert("Invalid function: " + func);
+			}
+
+			function addCommand(id, meta) {
+				cmd = new Command(id, meta);
+				var before = -1;
+				if($("#code :selected").length == 1)
+					before = parseInt($("#code :selected").val().substring(1));
+
+				if($("#functions").val() == "main") {
+					if(before >= 0)
+						mainBotCmds.splice(before, 0, cmd);
+					else
+						mainBotCmds.push(cmd);
+				}
+				else {
+					var n = parseInt($("#functions").val().substring(1));
+					if(before >= 0)
+						functions[n].splice(before, 0, cmd);
+					else
+						functions[n].push(cmd);
+				}
+				populateCommandList();
+			}
+
 			function deleteCommands() {
+				var n;
+				if($("#functions").val() != "main")
+					n = parseInt($("#functions").val().substring(1));
+				
+				var toSplice = new Array();
+				$("#code :selected").each(function(num) {
+					var i = parseInt($(this).val().substring(1));
+					toSplice.push(i - toSplice.length);
+				});
 				$("#code :selected").remove();
 				$("#code option").each(function(i) {
 					$(this).val("c" + i);
 				});
+				
+				for(var i = 0; i < toSplice.length; i++) {
+					var x = toSplice[i];
+					if($("#functions").val() == "main")
+						mainBotCmds.splice(x, 1);
+					else
+						functions[parseInt($("#functions").val().substring(1))].splice(x, 1);
+				};
+
 				updateButtonDisables();
 			}
 
+			function clearCommands() {
+				if($("#functions").val() == "main")
+					mainBotCmds = [];
+				else
+					functions[parseInt($("#functions").val().substring(1))] = [];
+				populateCommandList();
+			}
+
 			$("#code").change(updateButtonDisables);
-			$("#functions").change(updateButtonDisables);
+			$("#functions").change(function() {
+				updateButtonDisables();
+				populateCommandList();
+			});
 
 			$(document).ready(function() {
 				mainBot = new Bot(0, 0);
