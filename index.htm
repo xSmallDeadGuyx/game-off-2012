@@ -23,7 +23,6 @@
 
 		<script type="text/javascript" src="jquery.js"></script>
 		<script type="text/javascript" src="input.js"></script>
-		<script type="text/javascript" src="bot.js"></script>
 	</head>
 	<body>
 		<div id="container">
@@ -65,17 +64,33 @@
 					<button id="clearCommands" onClick="clearCommands()">Clear Commands</button>
 				</div>
 			</div>
+			<div id="mainControls">
+				<select id="levelSelect">
+					<option value="l0">Tutorial</option>
+					<option value="l1">Level 1</option>
+					<option value="l2">Level 2</option>
+				</select>
+				<button id="runCode" onClick="runCode()" disabled="true">Run Code</button>
+				<button id="resetLevel" onClick="resetLevel()" disabled="true">Reset Level</button>
+			</div>
 		</div>
 
 		<script type="text/javascript">
 			var c = document.getElementById("gameCanvas");
 			var ctx = c.getContext("2d");
+			var w = c.width = getWidth(); var h = c.height = getHeight();
+
 			var mainBot;
+			var otherBots = new Array();
 			var mainBotCmds = new Array();
 			var functions = new Array();
-			var branches;
-			var input;
-			var w = c.width = getWidth(); var h = c.height = getHeight();
+
+			var stepTimer = 0;
+			var ticksPerStep = 8;
+			var running = false;
+
+			var mainInstruction = -1;
+			var otherInstructions = new Array();
 
 			var NOTHING = 0;
 			var MOVE_LEFT = 1;
@@ -86,6 +101,20 @@
 			var CLONE_RIGHT = 6;
 			var CLONE_UP = 7;
 			var CLONE_DOWN = 8;
+
+			var mapData;
+
+			var MD_EMPTY = 0;
+			var MD_BLOCK = 1;
+			var MD_GOAL = 2;
+
+			function Bot(x, y, func) {
+				this.x = x;
+				this.y = y;
+				this.nx = x;
+				this.ny = y;
+				this.func = func;
+			}
 
 			Command = function(id, meta) {
 				this.id = id;
@@ -115,6 +144,7 @@
 			}
 
 			function createFunction() {
+				if(running) return;
 				var name = window.prompt("Function name:", "");
 				var validName = (name != "" && name.length < 15);
 				if(validName)
@@ -136,6 +166,7 @@
 			}
 
 			function deleteFunction() {
+				if(running) return;
 				if($("#functions").val() != "main" && window.confirm("Are you sure?")) {
 					var n = parseInt($("#functions").val().substring(1));
 					functions.splice(n, 1);
@@ -150,10 +181,12 @@
 			}
 
 			function addCommand(id) {
+				if(running) return;
 				addRawCommand(new Command(id, ""));
 			}
 
 			function addCloneCommand(id) {
+				if(running) return;
 				var func = window.prompt("Which function would you like to clone into?", "main");
 				var valid = func == "main";
 				if(!valid)
@@ -169,6 +202,7 @@
 			}
 
 			function addCommand(id, meta) {
+				if(running) return;
 				cmd = new Command(id, meta);
 				var before = -1;
 				if($("#code :selected").length == 1)
@@ -191,6 +225,7 @@
 			}
 
 			function deleteCommands() {
+				if(running) return;
 				var n;
 				if($("#functions").val() != "main")
 					n = parseInt($("#functions").val().substring(1));
@@ -217,6 +252,7 @@
 			}
 
 			function clearCommands() {
+				if(running) return;
 				if($("#functions").val() == "main")
 					mainBotCmds = [];
 				else
@@ -230,8 +266,115 @@
 				populateCommandList();
 			});
 
+			function createClone(x, y, func) {
+				var bot = new Bot(x, y, func);
+				otherBots.push(bot);
+				otherInstructions.push(-1);
+			}
+
+			function processCommand(cmd, bot) {
+				bot.nx = bot.x;
+				bot.ny = bot.y;
+
+				if(cmd.id == DO_NOTHING) return;
+
+				if(cmd.id == MOVE_LEFT && bot.x > 0 && !mapData[bot.x - 1, bot.y]) bot.nx = bot.x - 1;
+				if(cmd.id == MOVE_RIGHT && bot.x < cellsH - 1 && !mapData[bot.x + 1, bot.y]) bot.nx = bot.x + 1;
+				if(cmd.id == MOVE_UP && bot.y > 0 && !mapData[bot.x, bot.y - 1]) bot.ny = bot.y - 1;
+				if(cmd.id == MOVE_DOWN && bot.y < cellsV - 1 && !mapData[bot.x, bot.y + 1]) bot.ny = bot.y + 1;
+
+				if(cmd.id == CLONE_LEFT && bot.x > 0 && !mapData[bot.x - 1, bot.y]) createClone(bot.x - 1, bot.y, cmd.meta);
+				if(cmd.id == CLONE_RIGHT && bot.x < cellsH - 1 && !mapData[bot.x + 1, bot.y]) createClone(bot.x + 1, bot.y, cmd.meta);
+				if(cmd.id == CLONE_UP && bot.y > 0 && !mapData[bot.x, bot.y - 1]) createClone(bot.x, bot.y - 1, cmd.meta);
+				if(cmd.id == CLONE_DOWN && bot.y < cellsV - 1 && !mapData[bot.x, bot.y + 1]) createClone(bot.x, bot.y + 1, cmd.meta);
+			}
+
+			function getCodeForFunction(name) {
+				$("#functions option").each(function(i) {
+					if($(this).text() == name)
+						return functions[parseInt($(this).val().substring(1))];
+				});
+			}
+
+			function runCode() {
+				running = true;
+				mainInstruction = -1;
+				otherInstructions = new Array();
+			}
+
+			function onUpdate() {
+				if(running) {
+					if(stepTimer <= 0) {
+						mainInstruction++;
+						for(var i = 0; i < otherInstructions.length; i++)
+							otherInstructions[i]++;
+						stepTimer = ticksPerStep;
+						
+						if(mainInstruction < getCodeForFunction(mainBot.func).length) processCommand(getCodeForFunction(mainBot.func)[mainInstruction], mainBot);
+						for(var i = 0; i < otherBots.length; i++)
+							if(otherInstructions[i] < getCodeForFunction(otherBots[i].func).length) processCommand(getCodeForFunction(otherBots[i].func)[otherInstructions[i]], otherBots[i]);
+					}
+					else 
+						stepTimer--;
+
+					var won = true;
+					for(var i = 0; i < cellsH; i++)
+						for(var j = 0; j < cellsV; j++)
+							if(mapData[i, j] == MD_GOAL) {
+								var claimed = false;
+								for(var n = 0; n < otherBots.length; n++)
+									if(otherBots.x == i && otherBots.y == j)
+										claimed = true;
+								if(!claimed) won = false;
+							}
+
+					if(won) {
+						running = false;
+						alert("You win!")
+					}
+				}
+			}
+
+			function draw() {
+				ctx.save();
+				ctx.fillStyle = "#E0E0E0";
+				ctx.fillRect(0, 0, w, h);
+
+				ctx.strokeStyle = "#808080";
+				ctx.lineWidth = 1;
+				for(var i = 0; i <= cellsH; i++) {
+					ctx.beginPath();
+					ctx.moveTo(i * cellWidth, 0);
+					ctx.lineTo(i * cellWidth, h);
+					ctx.stroke();
+
+					ctx.beginPath();
+					ctx.moveTo(0, i * cellHeight);
+					ctx.lineTo(w, i * cellHeight);
+					ctx.stroke();
+				}
+
+				if(mapData) {
+					for(var i = 0; i < cellsH; i++)
+						for(var j = 0; j < cellsV; j++) {
+							if(mapData[i, j] == MD_BLOCK) ctx.drawImage(blockImg, i * cellWidth, j * cellHeight);
+							if(mapData[i, j] == MD_GOAL) ctx.drawImage(goalImg, i * cellWidth, j * cellHeight);
+						}
+					ctx.drawImage(botImg, cellWidth * (mainBot.x + (mainBot.nx - mainBot.x) * stepTimer / ticksPerStep), cellHeight * (mainBot.y + (mainBot.ny - mainBot.y) * stepTimer / ticksPerStep));
+					for(var i = 0; i < otherBots.length; i++)
+						ctx.drawImage(botImg,  cellWidth * (otherBots[i].x + (otherBots[i].nx - otherBots[i].x) * stepTimer / ticksPerStep), cellHeight * (otherBots[i].y + (otherBots[i].ny - otherBots[i].y) * stepTimer / ticksPerStep));
+				}
+
+				ctx.restore();
+			}
+
+			function gameLoop() {
+				onUpdate();
+				draw();
+			}
+
 			$(document).ready(function() {
-				mainBot = new Bot(0, 0);
+				mainBot = new Bot(0, 0, "main");
 				branches = new Array();
 				input = new Input();
 
@@ -244,41 +387,7 @@
 				});
 
 				setInterval(gameLoop, 10);
-
-				function onUpdate() {
-					
-				}
-
-				function draw() {
-					ctx.save();
-					ctx.fillStyle = "#E0E0E0";
-					ctx.fillRect(0, 0, w, h);
-
-					ctx.strokeStyle = "#808080";
-					ctx.lineWidth = 1;
-					for(var i = 0; i <= cellsH; i++) {
-						ctx.beginPath();
-						ctx.moveTo(i * cellWidth, 0);
-						ctx.lineTo(i * cellWidth, h);
-						ctx.stroke();
-
-						ctx.beginPath();
-						ctx.moveTo(0, i * cellHeight);
-						ctx.lineTo(w, i * cellHeight);
-						ctx.stroke();
-					}
-
-					ctx.drawImage(botImg, mainBot.x, mainBot.y);
-
-					ctx.restore();
-				}
-
-				function gameLoop() {
-					onUpdate();
-					draw();
-				}
 			});
-			$("document").keypress()
 		</script>
 	</body>
 </html>
