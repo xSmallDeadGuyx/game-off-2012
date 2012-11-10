@@ -1,4 +1,6 @@
 function Input() {
+	this.keys = new Array();
+	
 	this.leftPressed = false;
 	this.upPressed = false;
 	this.rightPressed = false;
