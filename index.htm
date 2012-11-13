@@ -333,12 +333,12 @@
 			function resetCode() {
 				functions = new Array();
 				mainBotCmds = new Array();
-				populateCommandList();
 				$("#functions option").each(function(i) {
 					if($(this).val() != "main")
 						$(this).remove();
 				});
 				$("#functions").val("main");
+				populateCommandList();
 			}
 
 			function loadLevel() {
