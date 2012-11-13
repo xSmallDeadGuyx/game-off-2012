@@ -248,7 +248,7 @@
 
 			function addCloneCommand(id) {
 				if(running) return;
-				var func = window.prompt("Which function would you like to clone into?", $("#functions").text());
+				var func = window.prompt("Which function would you like to clone into?", $("#functions :selected").text());
 				var valid = func == "main";
 				if(!valid)
 					$("#functions option").each(function(i) {
@@ -338,6 +338,7 @@
 					if($(this).val() != "main")
 						$(this).remove();
 				});
+				$("#functions").val("main");
 			}
 
 			function loadLevel() {
