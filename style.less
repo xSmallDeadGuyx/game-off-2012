@@ -22,6 +22,34 @@ body {
 	-webkit-box-shadow: 0px 0px @glow @colour;
 }
 
+#alert:before {
+	content: '';
+	display: inline-block;
+	height: 100%;
+	vertical-align: middle;
+	margin-right: -0.25em;
+}
+
+#alert {
+	z-index: 1000;
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	width: 100%;
+	background: rgba(0, 0, 0, 0.5);
+	text-align: center;
+
+	#content {
+		display: inline-block;
+		vertical-align: middle;
+		.outer-glow(10px, 10px, #FFF);
+		width: 50%;
+		background: #000;
+		color: #FFF;
+	}
+}
+
 #container {
 	padding: 0px;
 	display: inline-block;

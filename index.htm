@@ -16,16 +16,35 @@
 				return cellHeight * cellsV;
 			}
 
-			var levels = ["Tutorial_1", "Tutorial_2"];
+			var levels = ["Tutorial_1", "Tutorial_2", "Tutorial_3"];
 		</script>
 
 		<link rel="stylesheet/less" type="text/less" href="style.less">
 		<script type="text/javascript" src="less.js"></script>
 
 		<script type="text/javascript" src="jquery.js"></script>
-		<script type="text/javascript" src="input.js"></script>
 	</head>
 	<body>
+		<div id="alert" style="display: none">
+			<div id="content">
+				<span id="message"></span><br />
+				<button id="confirm" onclick="hideAlert()">Ok</button>
+			</div>
+		</div>
+		<script type="text/javascript">
+			var onHide;
+			function showAlert(msg, callback) {
+				$("#message").text(msg);
+				$("#alert").show();
+				onHide = callback;
+			}
+
+			function hideAlert() {
+				$("#alert").hide();
+				if(onHide)
+					onHide();
+			}
+		</script>
 		<div id="container">
 			<div id="arena">
 				<div id="border-tl"></div><div id="border-t"></div><div id="border-tr"></div>
@@ -114,6 +133,8 @@
 
 			var levelNum = 0;
 
+			var fails = new Array();5
+
 			function Bot(x, y, func) {
 				this.x = x;
 				this.y = y;
@@ -121,6 +142,13 @@
 				this.ny = y;
 				this.func = func;
 				this.cloning = false;
+
+				this.onGoal = function() {
+					for(var i = 0; i < goals.length; i++)
+						if(this.x == goals[i].x && this.y == goals[i].y)
+							return true;
+					return false;
+				}
 			}
 
 			function Goal(x, y) {
@@ -184,14 +212,15 @@
 						if($(this).text() == name)
 							validName = false;
 					});
-
-				if(!validName)
-					alert("Invalid name: " + name);
-				else {
-					var n = $("#functions option").length - 1;
-					$("#functions").append($("<option>", { value: "f" + n, text: name}));
-					$("#functions").val("f" + n);
-					functions.push(new Array());
+				if(name != null) {
+					if(!validName)
+						showAlert("Invalid name: " + name);
+					else {
+						var n = $("#functions option").length - 1;
+						$("#functions").append($("<option>", { value: "f" + n, text: name}));
+						$("#functions").val("f" + n);
+						functions.push(new Array());
+					}
 				}
 				updateButtonDisables();
 				populateCommandList();
@@ -219,7 +248,7 @@
 
 			function addCloneCommand(id) {
 				if(running) return;
-				var func = window.prompt("Which function would you like to clone into?", $("#functions").val());
+				var func = window.prompt("Which function would you like to clone into?", $("#functions").text());
 				var valid = func == "main";
 				if(!valid)
 					$("#functions option").each(function(i) {
@@ -227,10 +256,12 @@
 							valid = true;
 					});
 
-				if(valid)
-					addMetaCommand(id, func);
-				else
-					alert("Invalid function: " + func);
+				if(name != null) {
+					if(valid)
+						addMetaCommand(id, func);
+					else
+						showAlert("Invalid function: " + func);
+				}
 			}
 
 			function addMetaCommand(id, meta) {
@@ -299,6 +330,16 @@
 				populateCommandList();
 			});
 
+			function resetCode() {
+				functions = new Array();
+				mainBotCmds = new Array();
+				populateCommandList();
+				$("#functions option").each(function(i) {
+					if($(this).val() != "main")
+						$(this).remove();
+				});
+			}
+
 			function loadLevel() {
 				return loadCustomLevel("levels/" + levels[levelNum] + ".txt");
 			}
@@ -328,7 +369,7 @@
 										goals.push(new Goal(i, j));
 									if(c == "S")
 										if(foundStart) {
-											alert("Invalid level, multiple start positions found");
+											showAlert("Invalid level, multiple start positions found");
 											return;
 										}
 										else {
@@ -342,7 +383,7 @@
 									mapData[i][j] = MD_EMPTY;
 							}
 						if(!foundStart) {
-							alert("Invalid level, no start positions found");
+							showAlert("Invalid level, no start positions found");
 							return;
 						}
 						if(d.length > cellsV) {
@@ -422,6 +463,7 @@
 				otherBots = new Array();
 				updateButtonDisables();
 				running = false;
+				fails = new Array();
 			}
 
 			function onUpdate() {
@@ -458,20 +500,34 @@
 						}
 						if(finished) {
 							running = false;
+
+							fails = new Array();
 							for(var i = 0; i < goals.length; i++)
-								if(!goals[i].isComplete()) {
-									alert("Not all goals have been completed, try again!");
-									resetLevel();
-									return;
-								}
+								if(!goals[i].isComplete())
+									fails.push(goals[i]);
+
+							if(!mainBot.onGoal()) 
+								fails.push(mainBot);
+							for(var i = 0; i < otherBots.length; i++)
+								if(!otherBots[i].onGoal())
+									fails.push(otherBots[i]);
 							
+							if(fails.length > 0) {
+								showAlert("Some objects have failed! Check all goals are complete and no redundant bots are made!", function x() {
+									resetLevel();
+								});
+								return;
+							}
 							levelNum++;
 							if(levelNum < levels.length) {
-								alert("Level Complete! Advancing to the next level");
-								loadLevel();
+								showAlert("Level Complete! Advancing to the next level", function x() {
+									resetCode();
+									loadLevel();
+									resetLevel();
+								});
 							}
 							else
-								alert("Game Complete! Currently have no more levels left for you, maybe try some custom levels?");
+								showAlert("Game Complete! Currently have no more levels left for you, maybe try some custom levels?");
 							updateButtonDisables();
 						}
 					}
@@ -512,6 +568,13 @@
 						ctx.drawImage(botImg,  cellWidth * (otherBots[i].x + (otherBots[i].nx - otherBots[i].x) * (1 - stepTimer / ticksPerStep)), cellHeight * (otherBots[i].y + (otherBots[i].ny - otherBots[i].y) * (1 - stepTimer / ticksPerStep)));
 						ctx.globalAlpha = 1;
 					}
+
+					for(var i = 0; i < fails.length; i++) {
+						ctx.globalAlpha = 0.5;
+						ctx.fillStyle = "#FF0000"
+						ctx.fillRect(fails[i].x * cellWidth, fails[i].y * cellHeight, cellWidth, cellHeight);
+						ctx.globalAlpha = 1;
+					}
 				}
 
 				ctx.restore();
@@ -525,16 +588,7 @@
 			$(document).ready(function() {
 				mainBot = new Bot(0, 0, "main");
 				branches = new Array();
-				input = new Input();
 				loadLevel();
-
-				$(document).keydown(function(e) {
-					input.keydown(e);
-				});
-
-				$(document).keyup(function(e) {
-					input.keyup(e);
-				});
 
 				setInterval(gameLoop, 10);
 			});
