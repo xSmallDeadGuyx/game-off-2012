@@ -25,16 +25,22 @@
 		<script type="text/javascript" src="jquery.js"></script>
 	</head>
 	<body>
-		<div id="alert" style="display: none">
+		<div class="overlay" id="alert" style="display: none">
 			<div id="content">
 				<span id="message"></span><br />
-				<button id="confirm" onclick="hideAlert()">Ok</button>
+				<button onclick="hideAlert()">Ok</button>
+			</div>
+		</div>
+		<div class="overlay" id="confirm" style="display: none">
+			<div id="content">
+				<span id="message"></span><br />
+				<span id="buttons"></span>
 			</div>
 		</div>
 		<script type="text/javascript">
 			var onHide;
 			function showAlert(msg, callback) {
-				$("#message").text(msg);
+				$("#alert #message").text(msg);
 				$("#alert").show();
 				onHide = callback;
 			}
@@ -43,6 +49,23 @@
 				$("#alert").hide();
 				if(onHide)
 					onHide();
+			}
+
+			function showConfirm(msg, callback, buttons) {
+				if(!callback) return;
+				onHide = callback;
+				b = buttons ? buttons : ["Yes", "No"];
+				t = "";
+				for(var i = 0; i < b.length; i++)
+					t += '<button onclick="hideConfirm(' + i + ')">' + b[i] + '</button>';
+				$("#confirm #buttons").html(t);
+				$("#confirm #message").text(msg);
+				$("#confirm").show();
+			}
+
+			function hideConfirm(n) {
+				$("#confirm").hide();
+				onHide(n);
 			}
 		</script>
 		<div id="container">
@@ -228,17 +251,19 @@
 
 			function deleteFunction() {
 				if(running) return;
-				if($("#functions").val() != "main" && window.confirm("Are you sure?")) {
-					var n = parseInt($("#functions").val().substring(1));
-					functions.splice(n, 1);
-					$("#functions :selected").remove();
-					$("#functions option").each(function(i) {
-						if($(this).val() != "main")
-							$(this).val("f" + (i - 1));
+				if($("#functions").val() != "main") 
+					showConfirm("Are you sure?", function(id) {
+						if(id == 0) {
+							var n = parseInt($("#functions").val().substring(1));
+							functions.splice(n, 1);
+							$("#functions :selected").remove();
+							$("#functions option").each(function(i) {
+								if($(this).val() != "main")
+									$(this).val("f" + (i - 1));
+							});
+						}
+						updateButtonDisables();
 					});
-				}
-				
-				updateButtonDisables();
 			}
 
 			function addCommand(id) {
