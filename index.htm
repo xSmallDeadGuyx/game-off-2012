@@ -37,6 +37,13 @@
 				<span id="buttons"></span>
 			</div>
 		</div>
+		<div class="overlay" id="prompt" style="display: none">
+			<div id="content">
+				<span id="message"></span><br />
+				<input type="text" id="input"><br />
+				<button id="ok" onclick="hidePrompt(true)">Ok</button><button id="cancel" onclick="hidePrompt(false)">Cancel</button>
+			</div>
+		</div>
 		<script type="text/javascript">
 			var onHide;
 			function showAlert(msg, callback) {
@@ -54,8 +61,8 @@
 			function showConfirm(msg, callback, buttons) {
 				if(!callback) return;
 				onHide = callback;
-				b = buttons ? buttons : ["Yes", "No"];
-				t = "";
+				var b = buttons ? buttons : ["Yes", "No"];
+				var t = "";
 				for(var i = 0; i < b.length; i++)
 					t += '<button onclick="hideConfirm(' + i + ')">' + b[i] + '</button>';
 				$("#confirm #buttons").html(t);
@@ -66,6 +73,25 @@
 			function hideConfirm(n) {
 				$("#confirm").hide();
 				onHide(n);
+			}
+
+			function showPrompt(msg, def, callback) {
+				if(!callback) return;
+				onHide = callback;
+				$("#prompt #message").text(msg);
+				$("#prompt #input").val(def ? def : "");
+				$("#prompt").show();
+				$("#prompt #input").select();
+			}
+
+			$("#prompt #input").keyup(function(event){
+			    if(event.keyCode == 13)
+			        $("#prompt #ok").click();
+			});
+
+			function hidePrompt(complete) {
+				$("#prompt").hide();
+				if(complete) onHide($("#prompt #input").val());
 			}
 		</script>
 		<div id="container">
@@ -226,27 +252,32 @@
 				}
 			}
 
-			function createFunction() {
+			function createFunction(stay, callback) {
 				if(running) return;
-				var name = window.prompt("Function name:", "");
-				var validName = (name != "" && name.length < 15);
-				if(validName)
-					$("#functions option").each(function(i) {
-						if($(this).text() == name)
-							validName = false;
-					});
-				if(name != null) {
-					if(!validName)
-						showAlert("Invalid name: " + name);
-					else {
-						var n = $("#functions option").length - 1;
-						$("#functions").append($("<option>", { value: "f" + n, text: name}));
-						$("#functions").val("f" + n);
-						functions.push(new Array());
+				showPrompt("Function name:", "", function(name) {
+					var validName = (name != "" && name.length < 15);
+					if(validName)
+						$("#functions option").each(function(i) {
+							if($(this).text() == name)
+								validName = false;
+						});
+					if(name != null) {
+						if(!validName)
+							showAlert("Invalid name: " + name);
+						else {
+							var n = $("#functions option").length - 1;
+							$("#functions").append($("<option>", { value: "f" + n, text: name}));
+							if(!stay) $("#functions").val("f" + n);
+							functions.push(new Array());
+							updateButtonDisables();
+							populateCommandList();
+							callback(name);
+							return;
+						}
 					}
-				}
-				updateButtonDisables();
-				populateCommandList();
+					updateButtonDisables();
+					populateCommandList();
+				});
 			}
 
 			function deleteFunction() {
@@ -273,20 +304,25 @@
 
 			function addCloneCommand(id) {
 				if(running) return;
-				var func = window.prompt("Which function would you like to clone into?", $("#functions :selected").text());
-				var valid = func == "main";
-				if(!valid)
-					$("#functions option").each(function(i) {
-						if($(this).text() == func)
-							valid = true;
-					});
-
-				if(name != null) {
-					if(valid)
-						addMetaCommand(id, func);
-					else
-						showAlert("Invalid function: " + func);
-				}
+				var funcs = [];
+				$("#functions option").each(function(i) {
+					funcs.push($(this).text());
+				});
+				var count = funcs.length;
+				funcs.push("Create New Command");
+				funcs.push("Cancel");
+				showConfirm("Choose a function to clone into", function(n) {
+					if(n < count) {
+						var name = "";
+						if(n == 0) name = "main";
+						else name = $('#functions [value="f' + (n - 1) + '"]').text();
+						addMetaCommand(id, name);
+					}
+					if(n == count)
+						createFunction(true, function(name) {
+							addMetaCommand(id, name);
+						});
+				}, funcs);
 			}
 
 			function addMetaCommand(id, meta) {
