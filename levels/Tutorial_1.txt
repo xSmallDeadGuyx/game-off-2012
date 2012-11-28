@@ -1,17 +1,17 @@
-
-
-
-
-
-
-
-       S
-        X
-
-
-
-
-
-
-
+                
+                
+                
+                
+                
+                
+                
+       S        
+        X       
+                
+                
+                
+                
+                
+                
+                
 Use the command buttons to the right of the arena to program the robot to reach it's goal

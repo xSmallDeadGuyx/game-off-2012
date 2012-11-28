@@ -1,17 +1,17 @@
-
-
-
-
-
-
-
-       S X
-       X
-
-
-
-
-
-
-
+                
+                
+                
+                
+                
+                
+                
+       S X      
+       X        
+                
+                
+                
+                
+                
+                
+                
 Sometimes you may need 2 bots to complete a level!

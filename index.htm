@@ -16,7 +16,7 @@
 				return cellHeight * cellsV;
 			}
 
-			var levels = ["Tutorial_1", "Tutorial_2", "Tutorial_3"];
+			var levels = ["Tutorial_1", "Tutorial_2", "Tutorial_3", "Tutorial_4"];
 		</script>
 
 		<link rel="stylesheet/less" type="text/less" href="style.less">
@@ -120,11 +120,11 @@
 					<li><button id="moveRight" onClick="addCommand(2)"><img alt="Move Right" src="images/cmd_right.png" /></button></li>
 					<li><button id="moveUp" onClick="addCommand(3)"><img alt="Move Up" src="images/cmd_up.png" /></button></li>
 					<li><button id="moveDown" onClick="addCommand(4)"><img alt="Move Down" src="images/cmd_down.png" /></button></li><br />
-					Clone:<br />
-					<li><button id="cloneLeft" onClick="addCloneCommand(5)"><img alt="Clone Left" src="images/cmd_clone_left.png" /></button></li>
-					<li><button id="cloneRight" onClick="addCloneCommand(6)"><img alt="Clone Right" src="images/cmd_clone_right.png" /></button></li>
-					<li><button id="cloneUp" onClick="addCloneCommand(7)"><img alt="Clone Up" src="images/cmd_clone_up.png" /></button></li>
-					<li><button id="cloneDown" onClick="addCloneCommand(8)"><img alt="Clone Down" src="images/cmd_clone_down.png" /></button></li>
+					Branch:<br />
+					<li><button id="branchLeft" onClick="addBranchCommand(5)"><img alt="Branch Left" src="images/cmd_branch_left.png" /></button></li>
+					<li><button id="branchRight" onClick="addBranchCommand(6)"><img alt="Branch Right" src="images/cmd_branch_right.png" /></button></li>
+					<li><button id="branchUp" onClick="addBranchCommand(7)"><img alt="Branch Up" src="images/cmd_branch_up.png" /></button></li>
+					<li><button id="branchDown" onClick="addBranchCommand(8)"><img alt="Branch Down" src="images/cmd_branch_down.png" /></button></li>
 				</ul>
 				<div id="commandsExtra">
 					Others:<br />
@@ -166,23 +166,26 @@
 			var MOVE_RIGHT = 2;
 			var MOVE_UP = 3;
 			var MOVE_DOWN = 4;
-			var CLONE_LEFT = 5;
-			var CLONE_RIGHT = 6;
-			var CLONE_UP = 7;
-			var CLONE_DOWN = 8;
+			var BRANCH_LEFT = 5;
+			var BRANCH_RIGHT = 6;
+			var BRANCH_UP = 7;
+			var BRANCH_DOWN = 8;
 
 			var mapData;
 			var levelLoaded = false;
 			var goals;
+			var levers;
 			var levelStart;
 
 			var MD_EMPTY = 0;
 			var MD_BLOCK = 1;
 			var MD_GOAL = 2;
+			var MD_LEVER = 3;
+			var MD_DOOR = 4;
 
 			var levelNum = 0;
 
-			var fails = new Array();5
+			var fails = new Array();
 
 			function Bot(x, y, func) {
 				this.x = x;
@@ -200,17 +203,42 @@
 				}
 			}
 
+			function botAtPos(x, y) {
+				if(mainBot.x == x && mainBot.y == y) return true;
+					for(var i = 0; i < otherBots.length; i++)
+						if(otherBots[i].x == x && otherBots[i].y == y)
+							return true;
+					return false;
+			}
+
 			function Goal(x, y) {
 				this.x = x;
 				this.y = y;
 
 				this.isComplete = function() {
-					if(mainBot.x == this.x && mainBot.y == this.y) return true;
-					for(var i = 0; i < otherBots.length; i++)
-						if(otherBots[i].x == this.x && otherBots[i].y == this.y)
-							return true;
-					return false;
+					return botAtPos(this.x, this.y);
 				};
+			}
+
+			function Lever(x, y, colour) {
+				this.x = x;
+				this.y = y;
+				this.colour = colour;
+				this.doors = new Array();
+
+				this.postUpdate = function() {
+					var open = botAtPos(this.x, this.y);
+
+					for(var i = 0; i < this.doors.length; i++)
+						this.doors[i].open = botAtPos(this.doors[i].x, this.doors[i].y) || open;
+				};
+			}
+
+			function Door(x, y, colour) {
+				this.x = x;
+				this.y = y;
+				this.open = false;
+				this.colour = colour;
 			}
 
 			function Position(x, y) {
@@ -218,12 +246,12 @@
 				this.y = y;
 			}
 
-			Command = function(id, meta) {
+			function Command(id, meta) {
 				this.id = id;
 				this.meta = meta;
 			}
 
-			var cmdText = ["Do Nothing", "Move Left", "Move Right", "Move Up", "Move Down", "Clone Left", "Clone Right", "Clone Up", "Clone Down"];
+			var cmdText = ["Do Nothing", "Move Left", "Move Right", "Move Up", "Move Down", "Branch Left", "Branch Right", "Branch Up", "Branch Down"];
 
 			var botImg = new Image();
 			botImg.src = "images/bot.png";
@@ -233,6 +261,14 @@
 
 			var goalImg = new Image();
 			goalImg.src = "images/goal.png";
+
+			var leverRImg = new Image(); leverRImg.src = "images/lever_red.png";
+			var leverGImg = new Image(); leverGImg.src = "images/lever_green.png";
+			var leverBImg = new Image(); leverBImg.src = "images/lever_blue.png";
+
+			var doorRImg = new Image(); doorRImg.src = "images/door_red.png";
+			var doorGImg = new Image(); doorGImg.src = "images/door_green.png";
+			var doorBImg = new Image(); doorBImg.src = "images/door_blue.png";
 
 			function updateButtonDisables() {
 				$("#deleteCommand").attr('disabled', !$("#code").val());
@@ -302,7 +338,7 @@
 				addMetaCommand(id, "");
 			}
 
-			function addCloneCommand(id) {
+			function addBranchCommand(id) {
 				if(running) return;
 				var funcs = [];
 				$("#functions option").each(function(i) {
@@ -311,7 +347,7 @@
 				var count = funcs.length;
 				funcs.push("Create New Command");
 				funcs.push("Cancel");
-				showConfirm("Choose a function to clone into", function(n) {
+				showConfirm("Choose a function to branch into", function(n) {
 					if(n < count) {
 						var name = "";
 						if(n == 0) name = "main";
@@ -422,13 +458,28 @@
 							mapData.push(new Array());
 						var d = result.split("\n");
 						var foundStart = false;
+
+						var redDoors = new Array();
+						var greenDoors = new Array();
+						var blueDoors = new Array();
+						var redLevers = new Array();
+						var greenLevers = new Array();
+						var blueLevers = new Array();
 						for(var j = 0; j < cellsV; j++)
 							for(var i = 0; i < cellsH; i++) {
 								if(j < d.length && i < d[j].length) {
 									var c = d[j].charAt(i);
-									mapData[i][j] = c == " " ? MD_EMPTY : c == "#" ? MD_BLOCK : c == "X" ? MD_GOAL : MD_EMPTY;
-									if(c == "X")
-										goals.push(new Goal(i, j));
+									mapData[i][j] = c == " " ? MD_EMPTY : c == "#" ? MD_BLOCK : c == "X" ? MD_GOAL : c == "r" || c == "g" || c == "b" ? MD_LEVER : c == "R" || c == "G" || c == "B" ? MD_DOOR : MD_EMPTY;
+
+									if(c == "X") goals.push(new Goal(i, j));
+
+									if(c == "R") redDoors.push(new Door(i, j, 0));
+									if(c == "G") greenDoors.push(new Door(i, j, 1));
+									if(c == "B") blueDoors.push(new Door(i, j, 2));
+									if(c == "r") redLevers.push(new Lever(i, j, 0));
+									if(c == "g") greenLevers.push(new Lever(i, j, 1));
+									if(c == "b") blueLevers.push(new Lever(i, j, 2));
+
 									if(c == "S")
 										if(foundStart) {
 											showAlert("Invalid level, multiple start positions found");
@@ -444,6 +495,12 @@
 								else
 									mapData[i][j] = MD_EMPTY;
 							}
+
+						for(var i = 0; i < redLevers.length; i++) redLevers[i].doors = redDoors;
+						for(var i = 0; i < greenLevers.length; i++) greenLevers[i].doors = greenDoors;
+						for(var i = 0; i < blueLevers.length; i++) blueLevers[i].doors = blueDoors;
+						levers = redLevers.concat(greenLevers, blueLevers);
+
 						if(!foundStart) {
 							showAlert("Invalid level, no start positions found");
 							return;
@@ -461,15 +518,28 @@
 				return loaded;
 			}
 
-			function spaceClear(x, y) {
-				if(mapData[x][y] == MD_BLOCK) return false;
-				if((mainBot.x == x && mainBot.y == y) || (mainBot.nx == x && mainBot.ny == y)) return false;
-				for(var i = 0; i < otherBots.length; i++)
-					if((otherBots[i].x == x && otherBots[i].y == y) || (otherBots[i].nx == x && otherBots[i].ny == y)) return false;
-				return true;
+			function getDoorAt(x, y) {
+				for(var i = 0; i < levers.length; i++)
+					for(var j = 0; j < levers[i].doors.length; j++)
+						if(levers[i].doors[j].x == x && levers[i].doors[j].y == y)
+							return levers[i].doors[j];
+				return null;
 			}
 
-			function createClone(x, y, func, fbot) {
+			function getLeverAt(x, y) {
+				for(var i = 0; i < levers.length; i++)
+					if(levers[i].x == x && levers[i].y == y)
+						return levers[i];
+				return null;
+			}
+
+			function spaceClear(x, y) {
+				if(mapData[x][y] == MD_BLOCK) return false;
+				if(mapData[x][y] == MD_DOOR)  return getDoorAt(x, y).open;
+				return !botAtPos(x, y);
+			}
+
+			function createBranch(x, y, func, fbot) {
 				var bot = new Bot(fbot.x, fbot.y, func);
 				bot.nx = x;
 				bot.ny = y;
@@ -489,10 +559,10 @@
 				if(cmd.id == MOVE_UP && bot.y > 0 && spaceClear(bot.x, bot.y - 1)) bot.ny = bot.y - 1;
 				if(cmd.id == MOVE_DOWN && bot.y < cellsV - 1 && spaceClear(bot.x, bot.y + 1)) bot.ny = bot.y + 1;
 
-				if(cmd.id == CLONE_LEFT && bot.x > 0 && spaceClear(bot.x - 1, bot.y)) createClone(bot.x - 1, bot.y, cmd.meta, bot);
-				if(cmd.id == CLONE_RIGHT && bot.x < cellsH - 1 && spaceClear(bot.x + 1, bot.y)) createClone(bot.x + 1, bot.y, cmd.meta, bot);
-				if(cmd.id == CLONE_UP && bot.y > 0 && spaceClear(bot.x, bot.y - 1)) createClone(bot.x, bot.y - 1, cmd.meta, bot);
-				if(cmd.id == CLONE_DOWN && bot.y < cellsV - 1 && spaceClear(bot.x, bot.y + 1)) createClone(bot.x, bot.y + 1, cmd.meta, bot);
+				if(cmd.id == BRANCH_LEFT && bot.x > 0 && spaceClear(bot.x - 1, bot.y)) createBranch(bot.x - 1, bot.y, cmd.meta, bot);
+				if(cmd.id == BRANCH_RIGHT && bot.x < cellsH - 1 && spaceClear(bot.x + 1, bot.y)) createBranch(bot.x + 1, bot.y, cmd.meta, bot);
+				if(cmd.id == BRANCH_UP && bot.y > 0 && spaceClear(bot.x, bot.y - 1)) createBranch(bot.x, bot.y - 1, cmd.meta, bot);
+				if(cmd.id == BRANCH_DOWN && bot.y < cellsV - 1 && spaceClear(bot.x, bot.y + 1)) createBranch(bot.x, bot.y + 1, cmd.meta, bot);
 			}
 
 			function getCodeForFunction(name) {
@@ -560,6 +630,8 @@
 								processCommand(fetchedCode[otherInstructions[i]], otherBots[i]);
 							}
 						}
+						for(var i = 0; i < levers.length; i++)
+							levers[i].postUpdate();
 						if(finished) {
 							running = false;
 
@@ -580,14 +652,10 @@
 								});
 								return;
 							}
-							levelNum++;
-							if(levelNum < levels.length) {
-								showAlert("Level Complete! Advancing to the next level", function x() {
-									resetCode();
-									loadLevel();
-									resetLevel();
+							if(levelNum < levels.length - 1)
+								showAlert("Level Complete! Advancing to the next level", function() {
+									nextLevel();
 								});
-							}
 							else
 								showAlert("Game Complete! Currently have no more levels left for you, maybe try some custom levels?");
 							updateButtonDisables();
@@ -596,6 +664,13 @@
 					else 
 						stepTimer--;
 				}
+			}
+
+			function nextLevel() {
+				levelNum++;
+				resetCode();
+				loadLevel();
+				resetLevel();
 			}
 
 			function draw() {
@@ -622,6 +697,40 @@
 						for(var j = 0; j < cellsV; j++) {
 							if(mapData[i][j] == MD_BLOCK) ctx.drawImage(blockImg, i * cellWidth, j * cellHeight);
 							if(mapData[i][j] == MD_GOAL) ctx.drawImage(goalImg, i * cellWidth, j * cellHeight);
+							if(mapData[i][j] == MD_LEVER) {
+								var l = getLeverAt(i, j);
+								var img;
+								switch(l.colour) {
+									case 0:
+										img = leverRImg;
+										break;
+									case 1:
+										img = leverGImg;
+										break;
+									case 2:
+										img = leverBImg;
+										break;
+								}
+								if(img) ctx.drawImage(img, i * cellWidth, j * cellHeight);
+							}
+							if(mapData[i][j] == MD_DOOR) {
+								var d = getDoorAt(i, j);
+								if(!d.open) {
+									var img;
+									switch(d.colour) {
+										case 0:
+											img = doorRImg;
+											break;
+										case 1:
+											img = doorGImg;
+											break;
+										case 2:
+											img = doorBImg;
+											break;
+									}
+									if(img) ctx.drawImage(img, i * cellWidth, j * cellHeight);
+								}
+							}
 						}
 
 					ctx.drawImage(botImg, cellWidth * (mainBot.x + (mainBot.nx - mainBot.x) * (1 - stepTimer / ticksPerStep)), cellHeight * (mainBot.y + (mainBot.ny - mainBot.y) * (1 - stepTimer / ticksPerStep)));
