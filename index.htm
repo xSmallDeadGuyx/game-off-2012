@@ -208,11 +208,11 @@
 			}
 
 			function botAtPos(x, y) {
-				if(mainBot.x == x && mainBot.y == y) return true;
-					for(var i = 0; i < otherBots.length; i++)
-						if(otherBots[i].x == x && otherBots[i].y == y)
-							return true;
-					return false;
+				if((mainBot.x == x && mainBot.y == y) || (mainBot.nx == x && mainBot.ny == y)) return true;
+				for(var i = 0; i < otherBots.length; i++)
+					if((otherBots[i].x == x && otherBots[i].y == y) || (otherBots[i].nx == x && otherBots[i].ny == y))
+						return true;
+				return false;
 			}
 
 			function Goal(x, y) {
