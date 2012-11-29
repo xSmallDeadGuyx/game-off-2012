@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>GitHub Game Off 2012</title>
+		<script type="text/javascript">
+			var cellWidth = 16;
+			var cellHeight = 16;
+			var cellsH = 16;
+			var cellsV = 16;
+			var borderWidth = 16;
+
+			function getWidth() {
+				return cellWidth * cellsH;
+			}
+			function getHeight() {
+				return cellHeight * cellsV;
+			}
+		</script>
+
+		<link rel="stylesheet/less" type="text/less" href="editor_style.less">
+		<script type="text/javascript" src="less.js"></script>
+
+		<script type="text/javascript" src="jquery.js"></script>
+	</head>
+	<body>
+		<div class="overlay" id="alert" style="display: none">
+			<div id="content">
+				<span id="message"></span><br />
+				<button onclick="hideAlert()">Ok</button>
+			</div>
+		</div>
+		<div class="overlay" id="confirm" style="display: none">
+			<div id="content">
+				<span id="message"></span><br />
+				<span id="buttons"></span>
+			</div>
+		</div>
+		<div class="overlay" id="prompt" style="display: none">
+			<div id="content">
+				<span id="message"></span><br />
+				<input type="text" id="input"><br />
+				<button id="ok" onclick="hidePrompt(true)">Ok</button><button id="cancel" onclick="hidePrompt(false)">Cancel</button>
+			</div>
+		</div>
+		<script type="text/javascript">
+			var onHide;
+			function showAlert(msg, callback) {
+				$("#alert #message").text(msg);
+				$("#alert").show();
+				onHide = callback;
+			}
+
+			function hideAlert() {
+				$("#alert").hide();
+				if(onHide)
+					onHide();
+			}
+
+			function showConfirm(msg, callback, buttons) {
+				if(!callback) return;
+				onHide = callback;
+				var b = buttons ? buttons : ["Yes", "No"];
+				var t = "";
+				for(var i = 0; i < b.length; i++)
+					t += '<button onclick="hideConfirm(' + i + ')">' + b[i] + '</button>';
+				$("#confirm #buttons").html(t);
+				$("#confirm #message").text(msg);
+				$("#confirm").show();
+			}
+
+			function hideConfirm(n) {
+				$("#confirm").hide();
+				onHide(n);
+			}
+
+			function showPrompt(msg, def, callback) {
+				if(!callback) return;
+				onHide = callback;
+				$("#prompt #message").text(msg);
+				$("#prompt #input").val(def ? def : "");
+				$("#prompt").show();
+				$("#prompt #input").select();
+			}
+
+			$("#prompt #input").keyup(function(event){
+			    if(event.keyCode == 13)
+			        $("#prompt #ok").click();
+			});
+
+			function hidePrompt(complete) {
+				$("#prompt").hide();
+				if(complete) onHide($("#prompt #input").val());
+			}
+		</script>
+		<div id="container">
+			<div id="arena">
+				<div id="border-tl"></div><div id="border-t"></div><div id="border-tr"></div>
+				<div id="border-l"></div><canvas id="gameCanvas"></canvas><div id="border-r"></div>
+				<div id="border-bl"></div><div id="border-b"></div><div id="border-br"></div>
+			</div>
+			<div id="selector">
+				<input type="radio" name="block" value="0"><img src="images/rubber.png"></input><br />
+				<input type="radio" name="block" value="1" checked><img src="images/block.png"></input><br />
+				<input type="radio" name="block" value="2"><img src="images/goal.png"></input><br />
+				<input type="radio" name="block" value="3"><img src="images/lever_red.png"></input><br />
+				<input type="radio" name="block" value="4"><img src="images/lever_green.png"></input><br />
+				<input type="radio" name="block" value="5"><img src="images/lever_blue.png"></input><br />
+				<input type="radio" name="block" value="6"><img src="images/door_red.png"></input><br />
+				<input type="radio" name="block" value="7"><img src="images/door_green.png"></input><br />
+				<input type="radio" name="block" value="8"><img src="images/door_blue.png"></input><br />
+				<input type="radio" name="block" value="9"><img src="images/bot.png"></input><br />
+			</div>
+			<div id="mainControls">
+				<button id="loadLevel" onClick="loadLevel()">Load Level</button>
+				<button id="getCode" onClick="getCode()">Get Level Code</button>
+			</div>
+			<input id="info" value="Enter level info here"></input>
+		</div>
+
+		<script type="text/javascript">
+			var c = document.getElementById("gameCanvas");
+			var ctx = c.getContext("2d");
+			var w = c.width = getWidth(); var h = c.height = getHeight();
+
+			var mapData = [
+				[9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2]
+			];
+
+			var MD_EMPTY = 0;
+			var MD_BLOCK = 1;
+			var MD_GOAL = 2;
+			var MD_RLEVER = 3;
+			var MD_GLEVER = 4;
+			var MD_BLEVER = 5;
+			var MD_RDOOR = 6;
+			var MD_GDOOR = 7;
+			var MD_BDOOR = 8;
+			var MD_START = 9;
+
+			function newImage(str) {
+				img = new Image();
+				img.src = str;
+				return img;
+			}
+
+			var images = [
+				null,
+				newImage("images/block.png"),
+				newImage("images/goal.png"),
+				newImage("images/lever_red.png"),
+				newImage("images/lever_green.png"),
+				newImage("images/lever_blue.png"),
+				newImage("images/door_red.png"),
+				newImage("images/door_green.png"),
+				newImage("images/door_blue.png"),
+				newImage("images/bot.png")
+			];
+
+			var codes = [" ", "#", "X", "r", "g", "b", "R", "G", "B", "S"];
+
+			function loadLevel() {
+				showPrompt("Copy level text below: ", "", function(level) {
+					loadCustomLevel(level);
+				});
+			}
+
+			function getCode() {
+				if(!isValidLevel()) return;
+				var str = "";
+				for(var j = 0; j < cellsV; j++)
+					for(var i = 0; i < cellsV; i++)
+						str += codes[mapData[i][j]];
+				str += $("#info").val();
+				showPrompt("Generated level code:", str, function(str) {});
+			}
+
+			function updateButtonDisables() {
+				$("#getCode").attr("disabled", !isValidLevel());
+			}
+
+			function isValidLevel() {
+				var goals = 0;
+				var starts = 0;
+				for(var i = 0; i < cellsH; i++)
+					for(var j = 0; j < cellsV; j++) {
+						if(mapData[i][j] == MD_GOAL) goals++;
+						if(mapData[i][j] == MD_START) starts++;
+					}
+				return goals > 0 && starts == 1;
+			}
+
+			function loadCustomLevel(level) {
+				mapData = new Array();
+				for(var i = 0; i < cellsH; i++)
+					mapData.push(new Array());
+
+				for(var i = 0; i < cellsH; i++)
+					for(var j = 0; j < cellsV; j++) {
+						var p = i + j * cellsH;
+						if(p < level.length) {
+							for(var n = 0; n < codes.length; n++)
+								if(level[p] == codes[n])
+									mapData[i][j] = n;
+						}
+						else
+							mapData[i][j] = 0;
+					}
+
+				if(level.length > cellsV * cellsH)
+					$("#info").val(level.substring(cellsH * cellsV));
+				updateButtonDisables();
+			}
+
+			$("#gameCanvas").mousedown(function(e) {
+				var x = Math.floor(e.offsetX / 16);
+				var y = Math.floor(e.offsetY / 16);
+				var n = parseInt($("input:radio:checked").val());
+				if(n == MD_START)
+					for(var i = 0; i < cellsH; i++)
+						for(var j = 0; j < cellsV; j++)
+							if(mapData[i][j] == MD_START) mapData[i][j] = MD_EMPTY;
+				mapData[x][y] = n;
+			});
+
+			function draw() {
+				ctx.save();
+				ctx.fillStyle = "#E0E0E0";
+				ctx.fillRect(0, 0, w, h);
+
+				ctx.strokeStyle = "#808080";
+				ctx.lineWidth = 1;
+				for(var i = 0; i <= cellsH; i++) {
+					ctx.beginPath();
+					ctx.moveTo(i * cellWidth, 0);
+					ctx.lineTo(i * cellWidth, h);
+					ctx.stroke();
+
+					ctx.beginPath();
+					ctx.moveTo(0, i * cellHeight);
+					ctx.lineTo(w, i * cellHeight);
+					ctx.stroke();
+				}
+
+				for(var i = 0; i < cellsH; i++)
+					for(var j = 0; j < cellsV; j++)
+						if(mapData[i][j] > 0)
+							ctx.drawImage(images[mapData[i][j]], i * cellWidth, j * cellHeight);
+
+				ctx.restore();
+			}
+
+			$(document).ready(function() {
+				setInterval(draw, 10);
+			});
+		</script>
+	</body>
+</html>

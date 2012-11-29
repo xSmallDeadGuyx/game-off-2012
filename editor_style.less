@@ -1,0 +1,162 @@
+@cell-width: 16px;
+@cell-width: 16px;
+@cell-height: 16px;
+@cells-h: 16;
+@cells-v: 16;
+@border-width: 16px;
+@arena-width: (@border-width * 2 + @cell-width * @cells-h);
+@arena-height: (@border-width * 2 + @cell-height * @cells-v);
+
+body {
+	padding: 10px;
+	margin: 0px;
+	text-align: center;
+}
+
+.outer-glow(@glow, @radius, @colour) {
+	border-radius: @radius;
+	-moz-border-radius: @radius;
+	-webkit-border-radius: @radius;
+
+	box-shadow: 0px 0px @glow @colour;
+	-moz-box-shadow: 0px 0px @glow @colour;
+	-webkit-box-shadow: 0px 0px @glow @colour;
+}
+
+.overlay:before {
+	content: '';
+	display: inline-block;
+	height: 100%;
+	vertical-align: middle;
+	margin-right: -0.25em;
+}
+
+.overlay {
+	z-index: 1000;
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	width: 100%;
+	background: rgba(0, 0, 0, 0.5);
+
+	text-align: center;
+
+	#content {
+		display: inline-block;
+		vertical-align: middle;
+		.outer-glow(10px, 10px, #FFF);
+		width: 50%;
+		background: #000;
+		color: #FFF;
+	}
+}
+
+#container {
+	padding: 0px;
+	display: inline-block;
+
+	#arena {
+		position: relative;
+		float: left;
+		padding: 0px;
+		margin: 0px;
+		width: @arena-width;
+		height: @arena-height;
+
+		#border-tl {
+			position: absolute;
+			left: 0px;
+			top: 0px;
+			width: @border-width;
+			height: @border-width;
+			background-image: url('images/border-cl.png');
+		}
+		#border-bl {
+			position: absolute;
+			left: 0px;
+			bottom: 0px;
+			width: @border-width;
+			height: @border-width;
+			background-image: url('images/border-cl.png');
+		}
+		#border-tr {
+			position: absolute;
+			right: 0px;
+			top: 0px;
+			width: @border-width;
+			height: @border-width;
+			background-image: url('images/border-cr.png');
+		}
+		#border-br {
+			position: absolute;
+			right: 0px;
+			bottom: 0px;
+			width: @border-width;
+			height: @border-width;
+			background-image: url('images/border-cr.png');
+		}
+		#border-t {
+			position: absolute;
+			left: @border-width;
+			top: 0px;
+			width: (@cell-width * @cells-h);
+			height: @border-width;
+			background-image: url('images/border-h.png');
+		}
+		#border-b {
+			position: absolute;
+			left: @border-width;
+			bottom: 0px;
+			width: (@cell-width * @cells-h);
+			height: @border-width;
+			background-image: url('images/border-h.png');
+		}
+		#border-l {
+			position: absolute;
+			left: 0px;
+			top: @border-width;
+			width: @border-width;
+			height: (@cell-height * @cells-v);
+			background-image: url('images/border-v.png');
+		}
+		#border-r {
+			position: absolute;
+			right: 0px;
+			top: @border-width;
+			width: @border-width;
+			height: (@cell-height * @cells-v);
+			background-image: url('images/border-v.png');
+		}
+
+		#gameCanvas {
+			width: (@cell-width * @cells-h);
+			height: (@cell-height * @cells-v);
+			margin: @border-width;
+			padding: 0px;
+		}
+	}
+
+	#selector {
+		margin-left: @border-width;
+		float: left;
+		display: inline-block;
+		position: relative;
+	}
+
+	#info {
+		width: 100%;
+		margin: 0px;
+		text-align: center;
+		background-color: #E0E0E0;
+		font-style: italic;
+		margin-top: 5px;
+		.outer-glow(10px, 4px, #000);
+	}
+}
+
+.fakeLink {
+	color: blue;
+	text-decoration: underline;
+	cursor: pointer;
+}

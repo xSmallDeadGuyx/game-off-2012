@@ -135,6 +135,8 @@
 			</div>
 			<div id="mainControls">
 				<button id="runCode" onClick="runCode()" disabled="true">Run Code</button>
+				<button id="createLevel" onClick="window.open('leveleditor.htm')">Create Custom Levels</button>
+				<button id="loadLevel" onClick="askLoadLevel()">Load Custom Level</button>
 			</div>
 			<div id="info">
 			</div>
@@ -155,6 +157,7 @@
 			var running = false;
 			var ranOnce = false;
 			var levelComplete = false;
+			var customLevel = false;
 
 			var mainInstruction = -1;
 			var otherInstructions = new Array();
@@ -175,6 +178,7 @@
 			var levelLoaded = false;
 			var goals;
 			var levers;
+			var doors;
 			var levelStart;
 
 			var MD_EMPTY = 0;
@@ -224,14 +228,6 @@
 				this.x = x;
 				this.y = y;
 				this.colour = colour;
-				this.doors = new Array();
-
-				this.postUpdate = function() {
-					var open = botAtPos(this.x, this.y);
-
-					for(var i = 0; i < this.doors.length; i++)
-						this.doors[i].open = botAtPos(this.doors[i].x, this.doors[i].y) || open;
-				};
 			}
 
 			function Door(x, y, colour) {
@@ -438,11 +434,82 @@
 				populateCommandList();
 			}
 
+			function askLoadLevel() {
+				showPrompt("Copy level text below: ", "", function(level) {
+					loadCustomLevel(level);
+				});
+			}
+
 			function loadLevel() {
-				return loadCustomLevel("levels/" + levels[levelNum] + ".txt");
+				return loadOnlineLevel("levels/" + levels[levelNum] + ".txt");
 			}
 
 			function loadCustomLevel(level) {
+				customLevel = true;
+				loaded = true;
+				levelLoaded = false;
+				ranOnce = false;
+				levelComplete = false;
+
+				goals = new Array();
+				mapData = new Array();
+				for(var i = 0; i < cellsH; i++)
+					mapData.push(new Array());
+				var foundStart = false;
+
+				var redDoors = new Array();
+				var greenDoors = new Array();
+				var blueDoors = new Array();
+				var redLevers = new Array();
+				var greenLevers = new Array();
+				var blueLevers = new Array();
+				for(var j = 0; j < cellsV; j++)
+					for(var i = 0; i < cellsH; i++) {
+						if(j * cellsH + i < level.length) {
+							var c = level.charAt(j * cellsH + i);
+							mapData[i][j] = c == " " ? MD_EMPTY : c == "#" ? MD_BLOCK : c == "X" ? MD_GOAL : c == "r" || c == "g" || c == "b" ? MD_LEVER : c == "R" || c == "G" || c == "B" ? MD_DOOR : MD_EMPTY;
+
+							if(c == "X") goals.push(new Goal(i, j));
+
+							if(c == "R") redDoors.push(new Door(i, j, 0));
+							if(c == "G") greenDoors.push(new Door(i, j, 1));
+							if(c == "B") blueDoors.push(new Door(i, j, 2));
+							if(c == "r") redLevers.push(new Lever(i, j, 0));
+							if(c == "g") greenLevers.push(new Lever(i, j, 1));
+							if(c == "b") blueLevers.push(new Lever(i, j, 2));
+
+							if(c == "S")
+								if(foundStart) {
+									showAlert("Invalid level, multiple start positions found");
+									return;
+								}
+								else {
+									mainBot.x = mainBot.nx = i;
+									mainBot.y = mainBot.ny = j;
+									levelStart = new Position(i, j);
+									foundStart = true;
+								}
+						}
+						else
+							mapData[i][j] = MD_EMPTY;
+					}
+
+				levers = redLevers.concat(greenLevers, blueLevers);
+				doors = redDoors.concat(greenDoors, blueDoors);
+
+				if(!foundStart) {
+					showAlert("Invalid level, no start positions found");
+					return;
+				}
+				if(level.length > cellsV * cellsH)
+					$("#info").text(level.substring(cellsH * cellsV));
+				levelLoaded = true;
+				updateButtonDisables();
+				updateButtonDisables();
+			}
+
+			function loadOnlineLevel(level) {
+				customLevel = false;
 				var loaded = false;
 				$.ajax({
 					url : level,
@@ -496,10 +563,8 @@
 									mapData[i][j] = MD_EMPTY;
 							}
 
-						for(var i = 0; i < redLevers.length; i++) redLevers[i].doors = redDoors;
-						for(var i = 0; i < greenLevers.length; i++) greenLevers[i].doors = greenDoors;
-						for(var i = 0; i < blueLevers.length; i++) blueLevers[i].doors = blueDoors;
 						levers = redLevers.concat(greenLevers, blueLevers);
+						doors = redDoors.concat(greenDoors, blueDoors);
 
 						if(!foundStart) {
 							showAlert("Invalid level, no start positions found");
@@ -509,7 +574,7 @@
 							var text = "";
 							for(var i = 0; i < d.length - cellsV; i++)
 								text += (text == "" ? "" : "<br />") + d[cellsV + i];
-							$("#info").html(text);
+							$("#info").text(text);
 						}
 						levelLoaded = true;
 						updateButtonDisables();
@@ -519,10 +584,9 @@
 			}
 
 			function getDoorAt(x, y) {
-				for(var i = 0; i < levers.length; i++)
-					for(var j = 0; j < levers[i].doors.length; j++)
-						if(levers[i].doors[j].x == x && levers[i].doors[j].y == y)
-							return levers[i].doors[j];
+				for(var i = 0; i < doors.length; i++)
+					if(doors[i].x == x && doors[i].y == y)
+						return doors[i];
 				return null;
 			}
 
@@ -630,8 +694,34 @@
 								processCommand(fetchedCode[otherInstructions[i]], otherBots[i]);
 							}
 						}
+						var redPressed = false;
+						var greenPressed = false;
+						var bluePressed = false;
 						for(var i = 0; i < levers.length; i++)
-							levers[i].postUpdate();
+							if(botAtPos(levers[i].x, levers[i].y))
+								switch(levers[i].colour) {
+									case 0:
+										redPressed = true;
+										break;
+									case 1:
+										greenPressed = true;
+										break;
+									case 2:
+										bluePressed = true;
+										break;
+								}
+						for(var i = 0; i < doors.length; i++)
+							switch(doors[i].colour) {
+								case 0:
+									doors[i].open = redPressed;
+									break;
+								case 1:
+									doors[i].open = greenPressed;
+									break;
+								case 2:
+									doors[i].open = bluePressed;
+									break;
+							}
 						if(finished) {
 							running = false;
 
@@ -652,12 +742,18 @@
 								});
 								return;
 							}
-							if(levelNum < levels.length - 1)
-								showAlert("Level Complete! Advancing to the next level", function() {
-									nextLevel();
+							if(customLevel)
+								showConfirm("Custom level complete, would you like to go back to normal levels?", function(n) {
+									if(n == 0) nextLevel();
 								});
-							else
-								showAlert("Game Complete! Currently have no more levels left for you, maybe try some custom levels?");
+							else {
+								if(levelNum < levels.length - 1)
+									showAlert("Level Complete! Advancing to the next level", function() {
+										nextLevel();
+									});
+								else
+									showAlert("Game Complete! Currently have no more levels left for you, maybe try some custom levels?");
+							}
 							updateButtonDisables();
 						}
 					}
